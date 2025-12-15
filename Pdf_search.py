@@ -1,64 +1,67 @@
 import streamlit as st
-from langchain_classic.document_loaders import PyPDFLoader
+import tempfile
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import CharacterTextSplitter
-from langchain_classic.embeddings import OpenAIEmbeddings
-from langchain_classic.vectorstores import FAISS
-from langchain_classic.llms import OpenAI
-from langchain_classic import hub
-from langchain_classic.chains import create_retrieval_chain
-from langchain_classic.chains.combine_documents import create_stuff_documents_chain
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_community.vectorstores import FAISS
+from langchain import hub
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 
 
-# Streamlit app
+# Streamlit App
 def main():
- st.title("PDF Document Processing with Langchain")
+    st.title("📘 PDF Document Processing with LangChain")
 
- # File uploader
- uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+    # File uploader
+    uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
 
- if uploaded_file is not None:
- # Load the PDF document
- loader = PyPDFLoader(file_path=uploaded_file)
- documents = loader.load()
+    if uploaded_file is not None:
+        # Save uploaded file to a temporary location
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(uploaded_file.read())
+            temp_pdf_path = tmp_file.name
 
- # Split the documents into manageable chunks
- text_splitter = CharacterTextSplitter(
- chunk_size=1000, chunk_overlap=30, separator="\n"
- )
- docs = text_splitter.split_documents(documents=documents)
+        st.info("✅ PDF file uploaded successfully!")
 
- # Create embeddings for the documents
- embeddings = OpenAIEmbeddings()
- vectorstore = FAISS.from_documents(docs, embeddings)
- vectorstore.save_local("faiss_index_react")
+        # --- Load the PDF ---
+        loader = PyPDFLoader(temp_pdf_path)
+        documents = loader.load()
 
- # Load the vectorstore from local storage
- new_vectorstore = FAISS.load_local(
- "faiss_index_react", embeddings, allow_dangerous_deserialization=True
- )
+        # --- Split text into chunks ---
+        text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=30, separator="\n")
+        docs = text_splitter.split_documents(documents)
 
- # Pull the retrieval QA chat prompt
- retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
+        # --- Create embeddings and FAISS index ---
+        embeddings = OpenAIEmbeddings()
+        vectorstore = FAISS.from_documents(docs, embeddings)
+        vectorstore.save_local("faiss_index_react")
 
- # Create the document chain
- combine_docs_chain = create_stuff_documents_chain(
- llm=OpenAI(), prompt=retrieval_qa_chat_prompt
- )
+        # --- Load the saved vectorstore ---
+        new_vectorstore = FAISS.load_local(
+            "faiss_index_react", embeddings, allow_dangerous_deserialization=True
+        )
 
- # Create the retrieval chain
- retrieval_chain = create_retrieval_chain(
- retriever=new_vectorstore.as_retriever(), combine_docs_chain=combine_docs_chain
- )
+        # --- Load Retrieval QA Prompt ---
+        retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
 
- # User input for the query
- user_input = st.text_input("Enter your query:", "")
+        # --- Create document and retrieval chains ---
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        combine_docs_chain = create_stuff_documents_chain(llm=llm, prompt=retrieval_qa_chat_prompt)
+        retrieval_chain = create_retrieval_chain(
+            retriever=new_vectorstore.as_retriever(),
+            combine_docs_chain=combine_docs_chain
+        )
 
- if user_input:
- # Invoke the retrieval chain to get an answer
- res = retrieval_chain.invoke({"input": user_input})
- st.write("Response:", res["answer"])
+        # --- Query Input ---
+        user_input = st.text_input("💬 Enter your query:", "")
+
+        if user_input:
+            with st.spinner("Thinking..."):
+                res = retrieval_chain.invoke({"input": user_input})
+            st.success("✅ Response:")
+            st.write(res["answer"])
 
 
 if __name__ == "__main__":
- main()
-
+    main()
