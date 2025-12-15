@@ -1,7 +1,7 @@
 # pdf_app.py
 import streamlit as st
 import tempfile
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders.pdf import PyPDFLoader
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import FAISS
