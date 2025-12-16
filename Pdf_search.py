@@ -12,9 +12,9 @@ from langchain.chains.retrieval import create_retrieval_chain
 
 # Streamlit App
 def main():
-    st.title("📘 PDF Question Answering App (LangChain v1.x)")
+    st.title("PDF Question Answering App")
 
-    uploaded_file = st.file_uploader("📂 Upload a PDF file", type="pdf")
+    uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
 
     if uploaded_file is not None:
         # Save to a temp file
@@ -22,7 +22,7 @@ def main():
             tmp_file.write(uploaded_file.read())
             temp_pdf_path = tmp_file.name
 
-        st.info("✅ PDF file uploaded successfully!")
+        st.info("PDF file uploaded successfully!")
 
         # Load PDF
         loader = PyPDFLoader(temp_pdf_path)
@@ -52,12 +52,12 @@ def main():
         retrieval_chain = create_retrieval_chain(retriever=retriever, combine_docs_chain=combine_chain)
 
         # User query input
-        user_query = st.text_input("💬 Ask a question about the PDF:")
+        user_query = st.text_input("Ask a question about the PDF:")
 
         if user_query:
             with st.spinner("Thinking..."):
                 result = retrieval_chain.invoke({"input": user_query})
-            st.success("✅ Response:")
+            st.success("Response:")
             st.write(result["answer"])
 
 
